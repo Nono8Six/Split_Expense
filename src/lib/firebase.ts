@@ -1,14 +1,16 @@
+/// <reference types="vite/client" />
+
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-    apiKey: "***REMOVED***",
-    authDomain: "split-expense-couple.firebaseapp.com",
-    projectId: "split-expense-couple",
-    storageBucket: "split-expense-couple.firebasestorage.app",
-    messagingSenderId: "852261675102",
-    appId: "1:852261675102:web:cc99ed8eaaeaec916714cf",
-    measurementId: "G-R243JQZZS4"
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID,
+    measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
 // Initialize Firebase
