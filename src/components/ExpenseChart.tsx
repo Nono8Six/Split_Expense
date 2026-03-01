@@ -1,77 +1,92 @@
-import React from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
-import { Expense } from '../types';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import { Expense } from "../types";
+import { motion } from "motion/react";
+import { useTheme } from "next-themes";
 
 interface ExpenseChartProps {
   expenses: Expense[];
 }
 
-const COLORS = ['#4F46E5', '#E67E5A', '#10B981', '#F59E0B', '#6366F1', '#EC4899'];
+// Les couleurs suivront les CSS variables définies pour le thème (iOS palette)
+// Les variables CSS pour l'app : --chart-1, --chart-2, etc. (RGB/Hex format handled locally or via HSL)
+// On va injecter les classes directement ou utiliser CSS variables
+const COLORS = [
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-3)",
+  "var(--chart-4)",
+  "var(--chart-5)"
+];
 
 export function ExpenseChart({ expenses }: ExpenseChartProps) {
-  // Aggregate expenses by category
-  const categoryData = expenses.reduce((acc, expense) => {
-    const existing = acc.find(item => item.name === expense.category);
-    if (existing) {
-      existing.value += expense.amount;
-    } else {
-      acc.push({ name: expense.category, value: expense.amount });
-    }
+  if (expenses.length === 0) return null;
+
+  // Grouper par catégorie simplifiée (par nom ici ou account)
+  // On simule une logique par libellé simplifié pour Apple rings style
+  const dataMap = expenses.reduce((acc, exp) => {
+    const category = exp.name.split(" ")[0].substring(0, 15);
+    acc[category] = (acc[category] || 0) + exp.amount;
     return acc;
-  }, [] as { name: string; value: number }[]);
+  }, {} as Record<string, number>);
 
-  // Sort by value descending
-  categoryData.sort((a, b) => b.value - a.value);
+  const data = Object.entries(dataMap)
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value);
 
-  const totalAmount = expenses.reduce((sum, e) => sum + e.amount, 0);
-
-  if (expenses.length === 0) {
-    return (
-      <div className="w-full bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6 h-[300px] flex items-center justify-center">
-        <p className="text-gray-400">Aucune dépense pour ce mois</p>
-      </div>
-    );
-  }
+  const total = data.reduce((sum, item) => sum + item.value, 0);
 
   return (
-    <div className="w-full bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6">
-      <h3 className="text-lg font-medium text-gray-900 mb-4 px-2">
-        Répartition par catégorie
-      </h3>
-      <div className="h-[250px] w-full relative">
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-8">
-          <span className="text-sm text-gray-500">Total</span>
-          <span className="text-xl font-bold text-gray-900">{totalAmount.toFixed(0)} €</span>
-        </div>
-        <ResponsiveContainer width="100%" height="100%">
+    <div className="bg-card diffusion-shadow rounded-[24px] border border-border p-6 flex flex-col h-full min-h-[380px]">
+      <h2 className="text-[14px] font-medium uppercase text-muted-foreground mb-4 tracking-wide">Répartition</h2>
+
+      <div className="flex-1 min-h-0 relative">
+        <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
           <PieChart>
             <Pie
-              data={categoryData}
-              cx="50%"
-              cy="50%"
-              innerRadius={70}
-              outerRadius={90}
-              paddingAngle={5}
+              data={data}
+              innerRadius="75%"
+              outerRadius="100%"
+              paddingAngle={4}
               dataKey="value"
-              stroke="none"
+              stroke="transparent"
               cornerRadius={8}
             >
-              {categoryData.map((entry, index) => (
+              {data.map((_, index) => (
                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
               ))}
             </Pie>
-            <Tooltip 
-              formatter={(value: number) => `${value.toFixed(2)} €`}
-              contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}
-            />
-            <Legend 
-              verticalAlign="bottom" 
-              height={36}
-              iconType="circle"
-              formatter={(value) => <span className="text-sm text-gray-600 font-medium">{value}</span>}
+            <Tooltip
+              content={({ active, payload }) => {
+                if (active && payload && payload.length) {
+                  const data = payload[0].payload;
+                  return (
+                    <div className="glass px-4 py-2 border border-border rounded-xl diffusion-shadow">
+                      <p className="text-[13px] font-semibold text-foreground">{data.name}</p>
+                      <p className="text-[15px] font-bold text-foreground mt-1">{data.value.toFixed(2)} €</p>
+                    </div>
+                  );
+                }
+                return null;
+              }}
+              cursor={{ fill: 'transparent' }}
             />
           </PieChart>
         </ResponsiveContainer>
+
+        {/* Total au centre du donut */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+          <span className="text-[13px] font-semibold text-muted-foreground uppercase tracking-widest">Total</span>
+          <span className="text-[28px] font-bold text-foreground mt-0.5">{total.toFixed(0)} €</span>
+        </div>
+      </div>
+
+      <div className="mt-6 flex flex-wrap gap-x-4 gap-y-2 justify-center">
+        {data.slice(0, 4).map((entry, index) => (
+          <div key={entry.name} className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+            <span className="text-[13px] text-muted-foreground truncate max-w-[80px]">{entry.name}</span>
+          </div>
+        ))}
       </div>
     </div>
   );

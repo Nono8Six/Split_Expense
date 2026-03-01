@@ -1,193 +1,78 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
-import { useState } from "react";
-import { Calendar } from "./components/Calendar";
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import { useTheme } from "next-themes";
+import {
+  LayoutDashboard, ArrowLeftRight, Settings2, Plus,
+  ChevronRight, Sun, Moon, CreditCard, PieChart
+} from "lucide-react";
+import { User, Expense, Account } from "./types";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 import { TransferSummary } from "./components/TransferSummary";
 import { AddExpenseModal } from "./components/AddExpenseModal";
 import { SettingsModal } from "./components/SettingsModal";
 import { ExpenseChart } from "./components/ExpenseChart";
-import { Plus, Edit2, Trash2, Settings } from "lucide-react";
-import { User, Expense, Account } from "./types";
+import { Calendar } from "./components/Calendar";
+import { OnboardingFlow } from "./components/onboarding/onboarding-flow";
 
-const MOCK_USERS: User[] = [
-  { id: "u1", name: "Alice", color: "#E67E5A", salary: 2500 },
-  { id: "u2", name: "Bob", color: "#4F46E5", salary: 3500 },
-];
+import { fetchUsers } from "./services/api/users/fetch-users";
+import { fetchAccounts } from "./services/api/accounts/fetch-accounts";
+import { fetchExpenses } from "./services/api/expenses/fetch-expenses";
+import { createExpense } from "./services/api/expenses/create-expense";
+import { updateExpense as apiUpdateExpense } from "./services/api/expenses/update-expense";
+import { deleteExpense as apiDeleteExpense } from "./services/api/expenses/delete-expense";
 
-const MOCK_ACCOUNTS: Account[] = [
-  { id: "acc_joint", name: "Compte Commun", type: "JOINT" },
-  { id: "acc_u1", name: "Compte Alice", type: "PERSONAL", ownerId: "u1" },
-  { id: "acc_u2", name: "Compte Bob", type: "PERSONAL", ownerId: "u2" },
-];
+type View = "dashboard" | "transfers" | "settings";
 
-const MOCK_EXPENSES: Expense[] = [
-  {
-    id: "e1",
-    name: "ChatGPT",
-    amount: 20,
-    dayOfMonth: 3,
-    accountId: "acc_u1",
-    splitType: "EQUAL",
-    shares: { u1: 10, u2: 10 },
-    involvedUsers: ["u1", "u2"],
-    category: "Logiciel",
-  },
-  {
-    id: "e2",
-    name: "Service",
-    amount: 45,
-    dayOfMonth: 6,
-    accountId: "acc_u2",
-    splitType: "EQUAL",
-    shares: { u1: 22.5, u2: 22.5 },
-    involvedUsers: ["u1", "u2"],
-    category: "Autre",
-  },
-  {
-    id: "e3",
-    name: "App 1",
-    amount: 15,
-    dayOfMonth: 10,
-    accountId: "acc_u1",
-    splitType: "EQUAL",
-    shares: { u1: 7.5, u2: 7.5 },
-    involvedUsers: ["u1", "u2"],
-    category: "Logiciel",
-  },
-  {
-    id: "e4",
-    name: "App 2",
-    amount: 12,
-    dayOfMonth: 10,
-    accountId: "acc_u2",
-    splitType: "EQUAL",
-    shares: { u1: 6, u2: 6 },
-    involvedUsers: ["u1", "u2"],
-    category: "Logiciel",
-  },
-  {
-    id: "e5",
-    name: "Vercel",
-    amount: 20,
-    dayOfMonth: 11,
-    accountId: "acc_u1",
-    splitType: "EQUAL",
-    shares: { u1: 10, u2: 10 },
-    involvedUsers: ["u1", "u2"],
-    category: "Logiciel",
-  },
-  {
-    id: "e6",
-    name: "Service D",
-    amount: 30,
-    dayOfMonth: 14,
-    accountId: "acc_u2",
-    splitType: "EQUAL",
-    shares: { u1: 15, u2: 15 },
-    involvedUsers: ["u1", "u2"],
-    category: "Autre",
-  },
-  {
-    id: "e7",
-    name: "Service 2",
-    amount: 50,
-    dayOfMonth: 14,
-    accountId: "acc_u1",
-    splitType: "EQUAL",
-    shares: { u1: 25, u2: 25 },
-    involvedUsers: ["u1", "u2"],
-    category: "Autre",
-  },
-  {
-    id: "e8",
-    name: "Service K",
-    amount: 18,
-    dayOfMonth: 18,
-    accountId: "acc_u2",
-    splitType: "EQUAL",
-    shares: { u1: 9, u2: 9 },
-    involvedUsers: ["u1", "u2"],
-    category: "Autre",
-  },
-  {
-    id: "e9",
-    name: "Stripe",
-    amount: 29,
-    dayOfMonth: 20,
-    accountId: "acc_u1",
-    splitType: "EQUAL",
-    shares: { u1: 14.5, u2: 14.5 },
-    involvedUsers: ["u1", "u2"],
-    category: "Logiciel",
-  },
-  {
-    id: "e10",
-    name: "Figma",
-    amount: 15,
-    dayOfMonth: 22,
-    accountId: "acc_u2",
-    splitType: "EQUAL",
-    shares: { u1: 7.5, u2: 7.5 },
-    involvedUsers: ["u1", "u2"],
-    category: "Logiciel",
-  },
-  {
-    id: "e11",
-    name: "Service 3",
-    amount: 40,
-    dayOfMonth: 24,
-    accountId: "acc_u1",
-    splitType: "EQUAL",
-    shares: { u1: 20, u2: 20 },
-    involvedUsers: ["u1", "u2"],
-    category: "Autre",
-  },
-  {
-    id: "e12",
-    name: "Cube",
-    amount: 25,
-    dayOfMonth: 26,
-    accountId: "acc_u2",
-    splitType: "EQUAL",
-    shares: { u1: 12.5, u2: 12.5 },
-    involvedUsers: ["u1", "u2"],
-    category: "Logiciel",
-  },
-  {
-    id: "e13",
-    name: "Loyer",
-    amount: 1200,
-    dayOfMonth: 1,
-    accountId: "acc_joint",
-    splitType: "PROPORTIONAL",
-    shares: { u1: 500, u2: 700 }, // Proportional to 2500/3500
-    involvedUsers: ["u1", "u2"],
-    category: "Logement",
-  },
+const NAV_ITEMS = [
+  { id: "dashboard" as View, label: "Aperçu", icon: LayoutDashboard },
+  { id: "transfers" as View, label: "Virements", icon: ArrowLeftRight },
+  { id: "settings" as View, label: "Réglages", icon: Settings2 },
 ];
 
 export default function App() {
-  const [users, setUsers] = useState<User[]>(MOCK_USERS);
-  const [accounts, setAccounts] = useState<Account[]>(MOCK_ACCOUNTS);
-  const [expenses, setExpenses] = useState<Expense[]>(MOCK_EXPENSES);
+  const [users, setUsers] = useState<User[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | undefined>(undefined);
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [isLoading, setIsLoading] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [view, setView] = useState<View>("dashboard");
 
-  const handleAddExpense = (expense: Expense) => {
-    setExpenses([...expenses, expense]);
+  const { theme, setTheme } = useTheme();
+
+  const loadData = async () => {
+    try {
+      setIsLoading(true);
+      const [u, a, e] = await Promise.all([fetchUsers(), fetchAccounts(), fetchExpenses()]);
+      setUsers(u); setAccounts(a); setExpenses(e);
+      if (u.length === 0) setShowOnboarding(true);
+    } catch (err) {
+      console.error("Erreur de chargement", err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleUpdateExpense = (expense: Expense) => {
-    setExpenses(expenses.map(e => e.id === expense.id ? expense : e));
+  useEffect(() => { loadData(); }, []);
+
+  const handleAddExpense = async (expense: Expense) => {
+    const created = await createExpense(expense);
+    setExpenses(prev => [...prev, created]);
   };
 
-  const handleDeleteExpense = (id: string) => {
-    setExpenses(expenses.filter(e => e.id !== id));
+  const handleUpdateExpense = async (expense: Expense) => {
+    const updated = await apiUpdateExpense(expense);
+    setExpenses(prev => prev.map(e => e.id === updated.id ? updated : e));
+  };
+
+  const handleDeleteExpense = async (id: string) => {
+    await apiDeleteExpense(id);
+    setExpenses(prev => prev.filter(e => e.id !== id));
   };
 
   const openEditModal = (expense: Expense) => {
@@ -195,170 +80,276 @@ export default function App() {
     setIsModalOpen(true);
   };
 
-  const openAddModal = () => {
-    setEditingExpense(undefined);
-    setIsModalOpen(true);
-  };
+  const totalMonthly = expenses.reduce((s, e) => s + e.amount, 0);
+
+  if (isLoading) return <LoadingScreen />;
+  if (showOnboarding) return (
+    <OnboardingFlow onComplete={async () => { setShowOnboarding(false); await loadData(); }} />
+  );
 
   return (
-    <div className="min-h-screen bg-[#F5F5F7] font-sans pb-24">
-      {/* Header */}
-      <header className="pt-12 pb-8 px-6 max-w-4xl mx-auto flex items-start justify-between">
-        <div>
-          <h1 className="text-4xl font-semibold tracking-tight text-gray-900">
-            Aperçu
-          </h1>
-          <p className="text-gray-500 mt-2 text-lg">Suivez vos dépenses communes</p>
+    <div className="flex h-dvh bg-background text-foreground overflow-hidden">
+
+      {/* Sidebar Desktop */}
+      <aside className="hidden md:flex flex-col w-[260px] shrink-0 border-r border-border bg-card">
+        <div className="px-6 py-8">
+          <h1 className="text-2xl font-bold tracking-tight">Split</h1>
         </div>
-        <div className="flex items-center gap-2">
-          {users.map(user => (
-            <div 
-              key={user.id}
-              className="w-10 h-10 rounded-full flex items-center justify-center text-white font-medium text-sm overflow-hidden shadow-sm border-2 border-white"
-              style={{ backgroundColor: user.color, marginLeft: -8 }}
-            >
-              {user.avatar ? (
-                <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
-              ) : (
-                user.name.charAt(0)
+
+        <nav className="flex-1 px-4 space-y-1">
+          {NAV_ITEMS.map(item => (
+            <button
+              key={item.id}
+              onClick={() => item.id === "settings" ? setIsSettingsOpen(true) : setView(item.id)}
+              className={cn(
+                "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[15px] font-medium transition-colors active-press",
+                view === item.id && item.id !== "settings"
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5 hover:text-foreground"
               )}
-            </div>
+            >
+              <item.icon className="w-5 h-5 shrink-0" />
+              {item.label}
+            </button>
           ))}
-          <button 
-            onClick={() => setIsSettingsOpen(true)}
-            className="w-10 h-10 ml-2 bg-white rounded-full flex items-center justify-center text-gray-600 shadow-sm hover:bg-gray-50 transition-colors"
+        </nav>
+
+        <div className="p-4 border-t border-border">
+          <button
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[15px] font-medium text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5 transition-colors active-press"
           >
-            <Settings className="w-5 h-5" />
+            <div className="flex items-center gap-3">
+              {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              <span>{theme === "dark" ? "Mode clair" : "Mode sombre"}</span>
+            </div>
           </button>
         </div>
-      </header>
+      </aside>
 
       {/* Main Content */}
-      <main className="px-4 max-w-4xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-          
-          {/* Left Column: Calendar & Summary */}
-          <div className="space-y-8">
-            <Calendar 
-              expenses={expenses} 
-              currentDate={currentDate} 
-              onDateChange={setCurrentDate} 
-            />
-            <TransferSummary users={users} expenses={expenses} accounts={accounts} />
-          </div>
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
 
-          {/* Right Column: Chart & List */}
-          <div className="space-y-8">
-            <ExpenseChart expenses={expenses} />
-
-            {/* Expenses List */}
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-4 px-2">
-                Toutes les dépenses
-              </h3>
-              <div className="bg-white rounded-[32px] p-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)] space-y-4 max-h-[600px] overflow-y-auto">
-                {expenses.length === 0 ? (
-                  <p className="text-center text-gray-400 py-8">Aucune dépense pour ce mois</p>
-                ) : (
-                  expenses
-                    .sort((a, b) => a.dayOfMonth - b.dayOfMonth)
-                    .map((expense) => {
-                      const account = accounts.find(a => a.id === expense.accountId);
-                      const accountName = account ? account.name : "Inconnu";
-
-                      return (
-                        <div
-                          key={expense.id}
-                          className="flex items-center justify-between p-3 group hover:bg-gray-50 rounded-2xl transition-colors"
-                        >
-                          <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center shrink-0 overflow-hidden">
-                              <img 
-                                src={`https://logo.clearbit.com/${expense.name.toLowerCase().replace(/\s+/g, '')}.com`}
-                                alt={expense.name}
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  e.currentTarget.style.display = 'none';
-                                  e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                                }}
-                              />
-                              <span className="text-2xl hidden flex items-center justify-center w-full h-full">
-                                {expense.category === "Logement"
-                                  ? "🏠"
-                                  : expense.category === "Logiciel"
-                                    ? "💻"
-                                    : expense.category === "Alimentation"
-                                      ? "🛒"
-                                      : "💳"}
-                              </span>
-                            </div>
-                            <div>
-                              <p className="font-medium text-gray-900">{expense.name}</p>
-                              <p className="text-sm text-gray-500">
-                                Depuis {accountName}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-4">
-                            <div className="text-right">
-                              <p className="font-medium text-gray-900">
-                                {expense.amount.toFixed(2)} €
-                              </p>
-                              <p className="text-sm text-gray-500">
-                                Jour {expense.dayOfMonth}
-                              </p>
-                            </div>
-                            <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button 
-                                onClick={() => openEditModal(expense)}
-                                className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                              >
-                                <Edit2 className="w-4 h-4" />
-                              </button>
-                              <button 
-                                onClick={() => handleDeleteExpense(expense.id)}
-                                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })
-                )}
-              </div>
+        {/* Mobile Header glass */}
+        <header className="md:hidden glass fixed top-0 left-0 right-0 z-30 pt-[max(env(safe-area-inset-top),1rem)] pb-3 px-5 flex items-center justify-between">
+          <h1 className="text-[28px] font-bold tracking-tight">
+            {view === "dashboard" ? "Aperçu" : "Virements"}
+          </h1>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              className="w-9 h-9 rounded-full bg-secondary text-secondary-foreground flex items-center justify-center active-press"
+            >
+              {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
+            <div className="flex -space-x-2">
+              {users.map((u, i) => (
+                <Avatar key={u.id} className="w-9 h-9 ring-2 ring-background z-10" style={{ zIndex: 10 - i }}>
+                  <AvatarImage src={u.avatar} className="object-cover" />
+                  <AvatarFallback style={{ backgroundColor: u.color }} className="text-white text-xs font-semibold">{u.name.charAt(0)}</AvatarFallback>
+                </Avatar>
+              ))}
             </div>
           </div>
-        </div>
-      </main>
+        </header>
 
-      {/* FAB */}
-      <button
-        onClick={openAddModal}
-        className="fixed bottom-8 right-8 w-14 h-14 bg-black text-white rounded-full flex items-center justify-center shadow-lg hover:scale-105 transition-transform z-40"
-      >
-        <Plus className="w-6 h-6" />
-      </button>
+        {/* Scrollable Area */}
+        <main className="flex-1 overflow-y-auto overflow-x-hidden pt-24 pb-28 md:pt-8 md:pb-8 px-4 md:px-8">
+          <AnimatePresence mode="wait">
+            {view === "dashboard" && (
+              <DashboardView
+                key="dashboard"
+                users={users} accounts={accounts} expenses={expenses}
+                totalMonthly={totalMonthly} currentDate={currentDate}
+                onDateChange={setCurrentDate} onEditExpense={openEditModal} onDeleteExpense={handleDeleteExpense}
+              />
+            )}
+            {view === "transfers" && (
+              <TransfersView key="transfers" users={users} accounts={accounts} expenses={expenses} />
+            )}
+          </AnimatePresence>
+        </main>
+
+        {/* FAB */}
+        <button
+          onClick={() => { setEditingExpense(undefined); setIsModalOpen(true); }}
+          className="fixed right-5 bottom-[max(calc(env(safe-area-inset-bottom)+5.5rem),6.5rem)] md:bottom-8 md:right-8 z-40 w-14 h-14 rounded-full bg-primary text-primary-foreground flex items-center justify-center diffusion-shadow hover:scale-105 active:scale-95 transition-transform"
+        >
+          <Plus className="w-6 h-6" strokeWidth={2.5} />
+        </button>
+
+        {/* Mobile Bottom Nav */}
+        <nav className="md:hidden glass fixed bottom-0 left-0 right-0 z-30 pb-[max(env(safe-area-inset-bottom),1rem)] pt-2 flex justify-around">
+          {NAV_ITEMS.map(item => (
+            <button
+              key={item.id}
+              onClick={() => item.id === "settings" ? setIsSettingsOpen(true) : setView(item.id)}
+              className={cn(
+                "flex flex-col items-center gap-1 min-w-[64px] transition-colors active-press",
+                view === item.id && item.id !== "settings" ? "text-primary" : "text-muted-foreground"
+              )}
+            >
+              <item.icon className={cn("w-6 h-6", view === item.id && item.id !== "settings" && "fill-primary/20")} strokeWidth={view === item.id && item.id !== "settings" ? 2.5 : 2} />
+              <span className="text-[10px] font-medium">{item.label}</span>
+            </button>
+          ))}
+        </nav>
+      </div>
 
       <AddExpenseModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        users={users}
-        accounts={accounts}
-        onAdd={handleAddExpense}
-        onUpdate={handleUpdateExpense}
+        users={users} accounts={accounts}
+        onAdd={handleAddExpense} onUpdate={handleUpdateExpense}
         editingExpense={editingExpense}
       />
-
       <SettingsModal
         isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        users={users}
-        setUsers={setUsers}
-        accounts={accounts}
-        setAccounts={setAccounts}
+        onClose={() => { setIsSettingsOpen(false); loadData(); }}
+        users={users} accounts={accounts}
       />
+    </div>
+  );
+}
+
+/* ─── Dashboard View ─────────────────────────────────────────── */
+interface DashboardViewProps {
+  key?: string;
+  users: User[]; accounts: Account[]; expenses: Expense[];
+  totalMonthly: number; currentDate: Date;
+  onDateChange: (d: Date) => void;
+  onEditExpense: (e: Expense) => void;
+  onDeleteExpense: (id: string) => void;
+}
+
+function DashboardView({ users, accounts, expenses, totalMonthly, currentDate, onDateChange, onEditExpense, onDeleteExpense }: DashboardViewProps) {
+  const sorted = [...expenses].sort((a, b) => a.dayOfMonth - b.dayOfMonth);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+      transition={{ type: "spring", stiffness: 200, damping: 20 }}
+      className="max-w-4xl mx-auto space-y-6"
+    >
+      {/* Hero Balances (Apple Style Large Typography) */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="bg-card diffusion-shadow rounded-[24px] p-5 border border-border">
+          <div className="flex items-center gap-2 mb-2 text-muted-foreground">
+            <PieChart className="w-4 h-4" />
+            <span className="text-[13px] font-semibold uppercase tracking-wider">Ce mois</span>
+          </div>
+          <p className="text-3xl md:text-4xl font-bold tracking-tight">
+            {totalMonthly.toFixed(0)} <span className="opacity-50">€</span>
+          </p>
+          <p className="text-[14px] text-muted-foreground mt-1">{expenses.length} transactions</p>
+        </div>
+
+        <div className="bg-card diffusion-shadow rounded-[24px] p-5 border border-border">
+          <div className="flex items-center gap-2 mb-2 text-muted-foreground">
+            <CreditCard className="w-4 h-4" />
+            <span className="text-[13px] font-semibold uppercase tracking-wider">Prochaine</span>
+          </div>
+          <p className="text-3xl md:text-4xl font-bold tracking-tight">
+            {sorted[0] ? sorted[0].amount.toFixed(0) : "0"} <span className="opacity-50">€</span>
+          </p>
+          <p className="text-[14px] text-muted-foreground mt-1 truncate">{sorted[0]?.name ?? "Aucune"}</p>
+        </div>
+
+        <div className="col-span-2 md:col-span-1 bg-card diffusion-shadow rounded-[24px] p-5 border border-border md:bg-primary md:text-primary-foreground md:border-transparent">
+          <div className="flex items-center gap-2 mb-2 text-muted-foreground md:text-primary-foreground/80">
+            <LayoutDashboard className="w-4 h-4" />
+            <span className="text-[13px] font-semibold uppercase tracking-wider">Revenus</span>
+          </div>
+          <p className="text-3xl md:text-4xl font-bold tracking-tight">
+            {users.reduce((s, u) => s + u.salary, 0).toLocaleString("fr-FR")} <span className="opacity-60">€</span>
+          </p>
+          <p className="text-[14px] text-muted-foreground md:text-primary-foreground/80 mt-1">Par mois</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Calendar expenses={expenses} currentDate={currentDate} onDateChange={onDateChange} />
+        <ExpenseChart expenses={expenses} />
+      </div>
+
+      {/* Inset Grouped List (iOS Style) */}
+      <div>
+        <h2 className="text-[20px] font-bold tracking-tight mb-3 ml-2">Transactions</h2>
+        <div className="bg-card diffusion-shadow rounded-[20px] border border-border overflow-hidden">
+          {expenses.length === 0 ? (
+            <div className="p-8 text-center text-muted-foreground text-[15px]">Aucune dépense</div>
+          ) : (
+            <div className="divide-y divide-border">
+              {sorted.map(expense => (
+                <ExpenseRow
+                  key={expense.id}
+                  expense={expense}
+                  accounts={accounts}
+                  onClick={() => onEditExpense(expense)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+/* ─── Expense Row (iOS iOS list cell style) ──────────────────── */
+function ExpenseRow({ expense, accounts, onClick }: { key?: string; expense: Expense; accounts: Account[]; onClick: () => void }) {
+  const account = accounts.find(a => a.id === expense.accountId);
+
+  return (
+    <button
+      onClick={onClick}
+      className="w-full flex items-center gap-4 px-4 py-3 hover:bg-black/5 dark:hover:bg-white/5 active:bg-black/10 dark:active:bg-white/10 transition-colors text-left"
+    >
+      <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center shrink-0 border border-border overflow-hidden">
+        <img
+          src={`https://logo.clearbit.com/${expense.name.toLowerCase().replace(/\s+/g, '')}.com`}
+          alt={expense.name}
+          className="w-full h-full object-cover"
+          onError={e => { e.currentTarget.style.display = 'none'; }}
+        />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-[16px] font-semibold leading-tight text-foreground truncate">{expense.name}</p>
+        <p className="text-[13px] text-muted-foreground mt-0.5 truncate">{account?.name ?? "—"} · Le {expense.dayOfMonth}</p>
+      </div>
+      <div className="flex items-center gap-3 shrink-0">
+        <p className="text-[16px] font-bold text-foreground">{expense.amount.toFixed(2)} €</p>
+        <ChevronRight className="w-4 h-4 text-muted-foreground" strokeWidth={2.5} />
+      </div>
+    </button>
+  );
+}
+
+/* ─── Transfers View ─────────────────────────────────────────── */
+function TransfersView({ users, accounts, expenses }: { key?: string; users: User[], accounts: Account[], expenses: Expense[] }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+      transition={{ type: "spring", stiffness: 200, damping: 20 }}
+      className="max-w-2xl mx-auto md:pt-4"
+    >
+      <TransferSummary users={users} expenses={expenses} accounts={accounts} />
+    </motion.div>
+  );
+}
+
+/* ─── Loading ────────────────────────────────────────────────── */
+function LoadingScreen() {
+  return (
+    <div className="min-h-dvh bg-background p-6 space-y-6">
+      <Skeleton className="h-10 w-48 rounded-xl bg-secondary" />
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-32 rounded-[24px] bg-secondary" />)}
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Skeleton className="h-[340px] rounded-[24px] bg-secondary" />
+        <Skeleton className="h-[340px] rounded-[24px] bg-secondary" />
+      </div>
     </div>
   );
 }

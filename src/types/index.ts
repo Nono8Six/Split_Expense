@@ -1,3 +1,4 @@
+/** Représente un utilisateur de l'application */
 export type User = {
   id: string;
   name: string;
@@ -6,24 +7,29 @@ export type User = {
   avatar?: string;
 };
 
+/** Représente un compte bancaire (commun ou personnel) */
 export type Account = {
   id: string;
   name: string;
-  type: "PERSONAL" | "JOINT";
+  type: "PERSONAL" | "JOINT" | "personal" | "joint";
   ownerId?: string;
+  icon?: string;
 };
 
-export type SplitType = "EQUAL" | "PERCENTAGE" | "EXACT" | "SHARES" | "PROPORTIONAL";
+/** Type de répartition d'une dépense entre utilisateurs */
+export type SplitType = "EQUAL" | "PROPORTIONAL" | "EXACT";
 
+/** Représente une dépense récurrente mensuelle */
 export type Expense = {
   id: string;
   name: string;
   amount: number;
-  dayOfMonth: number; // 1-31
-  accountId: string; // Account ID from which it is paid
-  splitType: SplitType;
-  shares: Record<string, number>; // User ID -> Amount they owe
-  involvedUsers: string[]; // User IDs involved in this expense
-  category: string;
-  color?: string; // Fallback color if no icon
+  dayOfMonth: number;
+  accountId: string;
+  splitType?: SplitType;
+  shares?: Record<string, number>;
+  involvedUsers?: string[];
+  category?: string;
+  color?: string;
+  splits?: { userId: string; amount: number }[];
 };
